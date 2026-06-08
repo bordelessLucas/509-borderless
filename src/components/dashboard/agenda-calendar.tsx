@@ -1,15 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Plus } from "lucide-react";
 
+import { AgendaFilters } from "@/components/dashboard/agenda-filters";
+import { Badge } from "@/components/ui/badge";
+import { useAgendaAudit } from "@/hooks/use-agenda-audit";
+import { useUserRole } from "@/hooks/use-user-role";
+import { buildDateMoveLog } from "@/lib/audit-log";
+import { moveAppointmentToDate, parseDraggedAppointmentId } from "@/lib/appointment-move-utils";
 import { AppointmentDayIcon } from "@/components/dashboard/appointment-day-icon";
 import { DayAppointmentsDialog } from "@/components/dashboard/day-appointments-dialog";
 import { Button } from "@/components/ui/button";
 import {
-  getAppointmentsByDate,
-  monthlyAppointments,
-} from "@/lib/dashboard-mock-data";
+  countVacantSlotsForDate,
+  DEFAULT_AGENDA_FILTERS,
+  filterAppointmentsByRole,
+  type AgendaFilters as AgendaFiltersState,
+} from "@/lib/agenda-filter-utils";
+import type { DailyAppointment } from "@/lib/dashboard-mock-data";
+import { monthlyAppointments } from "@/lib/dashboard-mock-data";
 import {
   formatMonthYear,
   getCalendarDays,
@@ -19,12 +29,20 @@ import {
 import { cn } from "@/lib/utils";
 
 export function AgendaCalendar() {
+  const { isAgendaReadOnly, canDragAppointments, canManageAgenda } =
+    useUserRole();
+  const { recordAuditLogs } = useAgendaAudit();
   const today = new Date();
+  const [dragOverDateKey, setDragOverDateKey] = useState<string | null>(null);
   const [visibleMonth, setVisibleMonth] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1)
   );
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [appointments, setAppointments] =
+    useState<DailyAppointment[]>(monthlyAppointments);
+  const [filters, setFilters] =
+    useState<AgendaFiltersState>(DEFAULT_AGENDA_FILTERS);
 
   const calendarDays = useMemo(
     () =>
@@ -33,26 +51,31 @@ export function AgendaCalendar() {
   );
 
   const appointmentsByDate = useMemo(() => {
-    const map = new Map<string, ReturnType<typeof getAppointmentsByDate>>();
+    const map = new Map<string, DailyAppointment[]>();
 
-    monthlyAppointments.forEach((appointment) => {
+    appointments.forEach((appointment) => {
       const existing = map.get(appointment.date) ?? [];
       map.set(appointment.date, [...existing, appointment]);
     });
 
-    map.forEach((appointments, dateKey) => {
+    map.forEach((dayAppointments, dateKey) => {
       map.set(
         dateKey,
-        appointments.sort((a, b) => a.time.localeCompare(b.time))
+        dayAppointments.sort((a, b) => a.time.localeCompare(b.time))
       );
     });
 
     return map;
-  }, []);
+  }, [appointments]);
 
   const selectedAppointments = selectedDateKey
-    ? (appointmentsByDate.get(selectedDateKey) ?? [])
+    ? filterAppointmentsByRole(
+        appointmentsByDate.get(selectedDateKey) ?? [],
+        filters.role
+      )
     : [];
+
+  const showVacantOnly = filters.availability === "vacant";
 
   function openDay(dateKey: string) {
     setSelectedDateKey(dateKey);
@@ -81,23 +104,90 @@ export function AgendaCalendar() {
     openDay(toDateKey(currentToday));
   }
 
+  function handleDayDragOver(
+    event: React.DragEvent<HTMLButtonElement>,
+    dateKey: string
+  ) {
+    if (!canDragAppointments) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDragOverDateKey(dateKey);
+  }
+
+  function handleDayDragLeave() {
+    setDragOverDateKey(null);
+  }
+
+  function handleDayDrop(
+    event: React.DragEvent<HTMLButtonElement>,
+    dateKey: string
+  ) {
+    if (!canDragAppointments) {
+      return;
+    }
+
+    event.preventDefault();
+    setDragOverDateKey(null);
+
+    const appointmentId = parseDraggedAppointmentId(event.dataTransfer);
+
+    if (!appointmentId) {
+      return;
+    }
+
+    const appointment = appointments.find((item) => item.id === appointmentId);
+
+    if (!appointment || appointment.date === dateKey) {
+      return;
+    }
+
+    const nextAppointments = moveAppointmentToDate(
+      appointments,
+      appointmentId,
+      dateKey
+    );
+
+    setAppointments(nextAppointments);
+    void recordAuditLogs([buildDateMoveLog(appointment, dateKey)]);
+  }
+
   return (
     <div className="space-y-4 sm:space-y-6">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            Agenda
-          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+              Agenda
+            </h1>
+            {isAgendaReadOnly ? (
+              <Badge
+                variant="outline"
+                className="gap-1 border-muted-foreground/30 text-muted-foreground"
+              >
+                <Eye className="size-3" aria-hidden />
+                Somente leitura
+              </Badge>
+            ) : null}
+          </div>
           <p className="text-sm text-muted-foreground">
-            Toque em um dia para ver os atendimentos agendados.
+            {isAgendaReadOnly
+              ? "Visualize os atendimentos do dia. Seu perfil não permite alterações na agenda."
+              : "Toque em um dia para ver os atendimentos agendados."}
           </p>
         </div>
 
-        <Button className="h-11 w-full shrink-0 sm:w-auto">
-          <Plus className="size-4" aria-hidden />
-          Novo agendamento
-        </Button>
+        {canManageAgenda ? (
+          <Button className="h-11 w-full shrink-0 sm:w-auto">
+            <Plus className="size-4" aria-hidden />
+            Novo agendamento
+          </Button>
+        ) : null}
       </section>
+
+      <AgendaFilters filters={filters} onFiltersChange={setFilters} />
 
       <section className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
         <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-3 sm:px-4">
@@ -153,26 +243,47 @@ export function AgendaCalendar() {
 
         <div className="grid grid-cols-7">
           {calendarDays.map((day) => {
-            const dayAppointments =
-              appointmentsByDate.get(day.dateKey) ?? [];
+            const dayAppointments = filterAppointmentsByRole(
+              appointmentsByDate.get(day.dateKey) ?? [],
+              filters.role
+            );
+            const vacantCount = countVacantSlotsForDate(
+              day.dateKey,
+              appointments,
+              filters
+            );
             const visibleAppointments = dayAppointments.slice(0, 3);
             const hiddenCount =
               dayAppointments.length - visibleAppointments.length;
             const hasAppointments = dayAppointments.length > 0;
+            const hasVacantSlots = vacantCount > 0;
 
             return (
               <button
                 key={day.dateKey}
                 type="button"
                 onClick={() => openDay(day.dateKey)}
+                onDragOver={(event) => handleDayDragOver(event, day.dateKey)}
+                onDragLeave={handleDayDragLeave}
+                onDrop={(event) => handleDayDrop(event, day.dateKey)}
                 className={cn(
                   "relative flex min-h-16 flex-col border-b border-r border-border/70 p-1.5 text-left transition-colors sm:min-h-24 sm:p-2",
                   "hover:bg-muted/50 active:bg-muted/70",
                   "focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:outline-none",
                   !day.isCurrentMonth && "bg-muted/20 text-muted-foreground",
-                  day.isToday && "bg-primary/5"
+                  day.isToday && "bg-primary/5",
+                  showVacantOnly &&
+                    hasVacantSlots &&
+                    "bg-clinical-success/5 ring-1 ring-inset ring-clinical-success/20",
+                  canDragAppointments &&
+                    dragOverDateKey === day.dateKey &&
+                    "bg-primary/10 ring-2 ring-inset ring-primary/30"
                 )}
-                aria-label={`${day.dayNumber}, ${dayAppointments.length} atendimentos`}
+                aria-label={
+                  showVacantOnly
+                    ? `${day.dayNumber}, ${vacantCount} horário${vacantCount !== 1 ? "s" : ""} vago${vacantCount !== 1 ? "s" : ""}`
+                    : `${day.dayNumber}, ${dayAppointments.length} atendimentos`
+                }
               >
                 <span
                   className={cn(
@@ -184,7 +295,15 @@ export function AgendaCalendar() {
                   {day.dayNumber}
                 </span>
 
-                {hasAppointments ? (
+                {showVacantOnly ? (
+                  hasVacantSlots ? (
+                    <div className="mt-auto flex items-center justify-end">
+                      <span className="rounded-full bg-clinical-success/15 px-1.5 py-0.5 text-[0.6rem] font-semibold text-[oklch(0.42_0.1_155)] sm:text-[0.65rem]">
+                        {vacantCount} vago{vacantCount !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  ) : null
+                ) : hasAppointments ? (
                   <div className="mt-auto flex flex-wrap items-center gap-0.5 sm:gap-1">
                     {visibleAppointments.map((appointment) => (
                       <AppointmentDayIcon
@@ -219,13 +338,20 @@ export function AgendaCalendar() {
           <AppointmentDayIcon status="em_espera" />
           Em espera
         </span>
+        <span className="inline-flex items-center gap-1.5">
+          <AppointmentDayIcon status="cancelado" />
+          Cancelado
+        </span>
       </div>
 
       <DayAppointmentsDialog
         dateKey={selectedDateKey}
         appointments={selectedAppointments}
+        allAppointments={appointments}
+        filters={filters}
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
+        onAppointmentsChange={setAppointments}
       />
     </div>
   );

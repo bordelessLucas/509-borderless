@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+
+import { APP_DESCRIPTION, APP_NAME } from "@/lib/app-brand";
 import "./globals.css";
 
 const inter = Inter({
@@ -10,12 +12,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Borderless ABA",
-    template: "%s | Borderless ABA",
+    default: APP_NAME,
+    template: `%s | ${APP_NAME}`,
   },
-  description:
-    "Plataforma clínica de gestão de Terapia ABA para equipes multidisciplinares.",
-  applicationName: "Borderless ABA",
+  description: APP_DESCRIPTION,
+  applicationName: APP_NAME,
 };
 
 export const viewport: Viewport = {

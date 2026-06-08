@@ -1,6 +1,6 @@
 export const currentUser = {
-  name: "Ana Silva",
-  role: "Supervisor",
-  initials: "AS",
+  name: "Mariana Costa",
+  role: "Administração",
+  initials: "MC",
   notificationCount: 3,
 } as const;

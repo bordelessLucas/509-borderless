@@ -1,0 +1,80 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { AlertCircle, ScrollText } from "lucide-react";
+
+import {
+  fetchAuditLogsAction,
+  type AuditLogFilters,
+} from "@/app/actions/audit-log-actions";
+import { AuditLogFiltersBar } from "@/components/dashboard/audit-log-filters";
+import { AuditLogTable } from "@/components/dashboard/audit-log-table";
+import type { AgendaAuditLogRow } from "@/lib/supabase/database.types";
+
+export function AuditLogPage() {
+  const [filters, setFilters] = useState<AuditLogFilters>({});
+  const [logs, setLogs] = useState<AgendaAuditLogRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadLogs = useCallback(async (nextFilters: AuditLogFilters) => {
+    setIsLoading(true);
+    setError(null);
+
+    const result = await fetchAuditLogsAction(nextFilters);
+
+    if (!result.success) {
+      setError(result.error ?? "Não foi possível carregar o log de auditoria.");
+      setLogs([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setLogs(result.logs);
+    setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void loadLogs({});
+  }, [loadLogs]);
+
+  return (
+    <div className="space-y-6">
+      <section className="space-y-1">
+        <div className="flex items-center gap-2">
+          <ScrollText className="size-6 text-primary" aria-hidden />
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            Log de Auditoria
+          </h1>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Consulte o histórico de remanejamentos, cancelamentos e mudanças de
+          situação registrados automaticamente na agenda.
+        </p>
+      </section>
+
+      <AuditLogFiltersBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        onSearch={() => void loadLogs(filters)}
+        onClear={() => {
+          setFilters({});
+          void loadLogs({});
+        }}
+        isLoading={isLoading}
+      />
+
+      {error ? (
+        <div className="flex items-start gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <div>
+            <p className="font-medium">Erro ao consultar auditoria</p>
+            <p className="mt-1 text-destructive/90">{error}</p>
+          </div>
+        </div>
+      ) : null}
+
+      <AuditLogTable logs={logs} isLoading={isLoading} />
+    </div>
+  );
+}

@@ -16,9 +16,14 @@ const statusConfig: Record<
     className: "border-primary/20 bg-primary/10 text-primary",
   },
   em_espera: {
-    label: "Em Espera",
+    label: "Em espera",
     className:
       "border-clinical-warning/30 bg-clinical-warning/20 font-semibold text-[oklch(0.45_0.12_75)]",
+  },
+  cancelado: {
+    label: "Cancelado",
+    className:
+      "border-destructive/20 bg-destructive/10 text-destructive line-through decoration-destructive/60",
   },
 };
 

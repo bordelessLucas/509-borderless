@@ -6,7 +6,7 @@ export const userProfileOptions = [
   },
   {
     value: "supervisor",
-    label: "Supervisor (Psicólogo)",
+    label: "Psicólogo supervisor",
     description: "Supervisão clínica e programas ABA",
   },
   {

@@ -5,10 +5,11 @@ import { AuthCard } from "@/components/auth/auth-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { APP_NAME } from "@/lib/app-brand";
 
 export const metadata: Metadata = {
   title: "Esqueci minha senha",
-  description: "Recupere o acesso à sua conta Borderless ABA.",
+  description: `Recupere o acesso à sua conta ${APP_NAME}.`,
 };
 
 export default function ForgotPasswordPage() {
@@ -27,7 +28,7 @@ export default function ForgotPasswordPage() {
               href="/login"
               className="font-medium text-primary hover:underline"
             >
-              Voltar ao login
+              Voltar para entrar
             </Link>
           </p>
         </>

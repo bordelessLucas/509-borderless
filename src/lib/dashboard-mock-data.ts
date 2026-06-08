@@ -1,4 +1,8 @@
-export type AppointmentStatus = "confirmado" | "agendado" | "em_espera";
+export type AppointmentStatus =
+  | "confirmado"
+  | "agendado"
+  | "em_espera"
+  | "cancelado";
 
 export type DailyAppointment = {
   id: string;
@@ -172,6 +176,51 @@ export const monthlyAppointments: DailyAppointment[] = [
     patient: "Alice Moura",
     professional: "Ana Silva",
     status: "em_espera",
+  },
+  {
+    id: "19",
+    date: "2026-06-08",
+    time: "08:00",
+    endTime: "09:00",
+    patient: "Fernanda Oliveira",
+    professional: "Ana Silva",
+    status: "agendado",
+  },
+  {
+    id: "20",
+    date: "2026-06-08",
+    time: "10:00",
+    endTime: "11:00",
+    patient: "Fernanda Oliveira",
+    professional: "Carlos Lima",
+    status: "agendado",
+  },
+  {
+    id: "21",
+    date: "2026-06-08",
+    time: "14:30",
+    endTime: "15:30",
+    patient: "Fernanda Oliveira",
+    professional: "Juliana Costa",
+    status: "confirmado",
+  },
+  {
+    id: "22",
+    date: "2026-06-08",
+    time: "09:30",
+    endTime: "10:30",
+    patient: "Ricardo Santos",
+    professional: "Ana Silva",
+    status: "em_espera",
+  },
+  {
+    id: "23",
+    date: "2026-06-08",
+    time: "11:30",
+    endTime: "12:30",
+    patient: "Patrícia Gomes",
+    professional: "Carlos Lima",
+    status: "agendado",
   },
 ];
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { UserRoleProvider } from "@/contexts/user-role-context";
 import { AppLogo } from "@/components/layout/app-logo";
 import { DashboardHeader } from "@/components/layout/dashboard-header";
 import { DashboardNav } from "@/components/layout/dashboard-nav";
@@ -14,14 +15,25 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { mainNavItems } from "@/lib/navigation";
+import { getNavItemsForProfile } from "@/lib/navigation";
+import { useUserRole } from "@/hooks/use-user-role";
 
 type DashboardShellProps = {
   children: React.ReactNode;
 };
 
 export function DashboardShell({ children }: DashboardShellProps) {
+  return (
+    <UserRoleProvider>
+      <DashboardShellContent>{children}</DashboardShellContent>
+    </UserRoleProvider>
+  );
+}
+
+function DashboardShellContent({ children }: DashboardShellProps) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const { profile } = useUserRole();
+  const navItems = getNavItemsForProfile(profile);
 
   return (
     <div className="flex min-h-dvh bg-clinical-surface lg:flex-row">
@@ -30,7 +42,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
           <AppLogo />
         </div>
         <div className="flex-1 overflow-y-auto">
-          <DashboardNav items={mainNavItems} />
+          <DashboardNav items={navItems} />
         </div>
         <Separator />
         <div className="space-y-3 px-4 py-4">
@@ -61,7 +73,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
           <div className="flex-1 overflow-y-auto">
             <DashboardNav
-              items={mainNavItems}
+              items={navItems}
               onNavigate={() => setIsMobileNavOpen(false)}
             />
           </div>
